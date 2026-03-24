@@ -1,8 +1,9 @@
 import CredentialsProvider from "next-auth/providers/credentials"
 import { supabaseAdmin } from "./supabaseServer"
 import bcrypt from "bcrypt"
+import { NextAuthOptions } from "next-auth"
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -42,7 +43,7 @@ export const authOptions = {
             return null
           }
 
-          // ✅ Success
+          // ✅ Return user object (IMPORTANT: include id)
           return {
             id: user.id,
             email: user.email,
@@ -61,6 +62,24 @@ export const authOptions = {
 
   pages: {
     signIn: "/login",
+  },
+
+  callbacks: {
+    // 🔥 Add user.id into JWT
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+      }
+      return token
+    },
+
+    // 🔥 Make id available in session
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string
+      }
+      return session
+    },
   },
 
   secret: process.env.NEXTAUTH_SECRET,

@@ -2,12 +2,9 @@ import { stripe } from "@/lib/stripe"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
-  const { plan } = await req.json()
+  const { plan, userId } = await req.json()
 
-  const price =
-    plan === "monthly"
-      ? 500 // ₹500 example
-      : 5000 // yearly
+  const price = plan === "monthly" ? 500 : 5000
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
@@ -25,6 +22,12 @@ export async function POST(req: Request) {
         quantity: 1,
       },
     ],
+
+    // 🔥 IMPORTANT PART
+    metadata: {
+      userId,
+      plan,
+    },
 
     success_url: `${process.env.NEXTAUTH_URL}/dashboard`,
     cancel_url: `${process.env.NEXTAUTH_URL}/`,
