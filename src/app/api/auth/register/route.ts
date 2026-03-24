@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabaseServer"
+import bcrypt from "bcrypt"
 
 export async function POST(req: Request) {
   console.log("REGISTER API HIT 🚀")
@@ -7,6 +8,7 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json()
 
+    // ✅ Validation
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -14,7 +16,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // ✅ Check if user exists
+    // ✅ Check if user already exists
     const { data: existingUser, error: fetchError } = await supabaseAdmin
       .from("users")
       .select("*")
@@ -23,6 +25,10 @@ export async function POST(req: Request) {
 
     if (fetchError) {
       console.log("FETCH ERROR:", fetchError)
+      return NextResponse.json(
+        { error: fetchError.message },
+        { status: 500 }
+      )
     }
 
     if (existingUser) {
@@ -32,10 +38,18 @@ export async function POST(req: Request) {
       )
     }
 
+    // 🔐 Hash password
+    const hashedPassword = await bcrypt.hash(password, 10)
+
     // ✅ Insert user
     const { data, error } = await supabaseAdmin
       .from("users")
-      .insert([{ email, password }])
+      .insert([
+        {
+          email,
+          password: hashedPassword,
+        },
+      ])
       .select()
 
     if (error) {
@@ -47,7 +61,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { message: "User created", user: data[0] },
+      {
+        message: "User registered successfully",
+        user: data[0],
+      },
       { status: 200 }
     )
   } catch (err) {

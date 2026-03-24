@@ -1,7 +1,6 @@
-import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { supabaseAdmin } from "./supabaseServer"
 import bcrypt from "bcrypt"
-import { supabase } from "./db"
 
 export const authOptions = {
   providers: [
@@ -11,30 +10,46 @@ export const authOptions = {
         email: {},
         password: {},
       },
+
       async authorize(credentials) {
-        if (!credentials) return null
+        try {
+          if (!credentials) return null
 
-        // get user from DB
-        const { data: user, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", credentials.email)
-          .single()
+          const { email, password } = credentials
 
-        if (!user || error) return null
+          // 🔍 Find user
+          const { data: user, error } = await supabaseAdmin
+            .from("users")
+            .select("*")
+            .eq("email", email)
+            .maybeSingle()
 
-        // compare password
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
+          if (error) {
+            console.log("FETCH ERROR:", error)
+            return null
+          }
 
-        if (!isValid) return null
+          if (!user) {
+            console.log("User not found")
+            return null
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          role: user.role,
+          // 🔐 Compare hashed password
+          const isValid = await bcrypt.compare(password, user.password)
+
+          if (!isValid) {
+            console.log("Wrong password")
+            return null
+          }
+
+          // ✅ Success
+          return {
+            id: user.id,
+            email: user.email,
+          }
+        } catch (err) {
+          console.log("AUTH ERROR:", err)
+          return null
         }
       },
     }),
@@ -44,22 +59,8 @@ export const authOptions = {
     strategy: "jwt",
   },
 
-  callbacks: {
-    async jwt({ token, user }: any) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
-      }
-      return token
-    },
-
-    async session({ session, token }: any) {
-      if (session.user) {
-        session.user.id = token.id
-        session.user.role = token.role
-      }
-      return session
-    },
+  pages: {
+    signIn: "/login",
   },
 
   secret: process.env.NEXTAUTH_SECRET,
