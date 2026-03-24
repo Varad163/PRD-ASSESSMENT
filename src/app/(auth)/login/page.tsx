@@ -22,12 +22,24 @@ export default function LoginPage() {
       redirect: false,
     })
 
+    if (!res || res.error) {
+      setLoading(false)
+      setError("Invalid email or password")
+      return
+    }
+
+    // 🔥 IMPORTANT: fetch session AFTER login
+    const session = await fetch("/api/auth/session").then((res) => res.json())
+
+    console.log("SESSION:", session) // 🧪 debug
+
     setLoading(false)
 
-    if (res?.ok) {
-      router.push("/dashboard") // ✅ better than window.location
+    // 🚀 ROLE BASED REDIRECT
+    if (session?.user?.role === "admin") {
+      router.push("/admin") // 👑 admin route
     } else {
-      setError("Invalid email or password")
+      router.push("/dashboard") // 👤 normal user
     }
   }
 

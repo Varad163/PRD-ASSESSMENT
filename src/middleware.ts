@@ -3,17 +3,28 @@ import { NextResponse } from "next/server"
 
 export async function middleware(req: any) {
   const token = await getToken({ req })
+  const path = req.nextUrl.pathname
 
-  const isAuth = !!token
-  const isProtected = req.nextUrl.pathname.startsWith("/dashboard")
+  // 🔐 1. Protect Dashboard (login required)
+  if (path.startsWith("/dashboard")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", req.url))
+    }
+  }
 
-  if (isProtected && !isAuth) {
-    return NextResponse.redirect(new URL("/login", req.url))
+  // 🧑‍💻 2. Protect Admin (admin only)
+  if (path.startsWith("/admin")) {
+    if (!token || token.role !== "admin") {
+      return NextResponse.redirect(new URL("/", req.url))
+    }
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/admin/:path*",
+  ],
 }

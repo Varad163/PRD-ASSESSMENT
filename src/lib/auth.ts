@@ -18,35 +18,22 @@ export const authOptions: NextAuthOptions = {
 
           const { email, password } = credentials
 
-          // 🔍 Find user
           const { data: user, error } = await supabaseAdmin
             .from("users")
             .select("*")
             .eq("email", email)
             .maybeSingle()
 
-          if (error) {
-            console.log("FETCH ERROR:", error)
-            return null
-          }
+          if (error || !user) return null
 
-          if (!user) {
-            console.log("User not found")
-            return null
-          }
-
-          // 🔐 Compare hashed password
           const isValid = await bcrypt.compare(password, user.password)
+          if (!isValid) return null
 
-          if (!isValid) {
-            console.log("Wrong password")
-            return null
-          }
-
-          // ✅ Return user object (IMPORTANT: include id)
+          // ✅ INCLUDE ROLE
           return {
             id: user.id,
             email: user.email,
+            role: user.role, // 🔥 important
           }
         } catch (err) {
           console.log("AUTH ERROR:", err)
@@ -65,18 +52,18 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    // 🔥 Add user.id into JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.role = user.role // 🔥
       }
       return token
     },
 
-    // 🔥 Make id available in session
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.role = token.role as string // 🔥
       }
       return session
     },
