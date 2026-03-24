@@ -1,16 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
-
-// TEMP: Replace later with DB call
-const users = [
-  {
-    id: "1",
-    email: "admin@test.com",
-    password: "$2b$10$hashedpassword", // hashed
-    role: "admin",
-  },
-]
+import { supabase } from "./db"
 
 export const authOptions = {
   providers: [
@@ -23,12 +14,16 @@ export const authOptions = {
       async authorize(credentials) {
         if (!credentials) return null
 
-        const user = users.find(
-          (u) => u.email === credentials.email
-        )
+        // get user from DB
+        const { data: user, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("email", credentials.email)
+          .single()
 
-        if (!user) return null
+        if (!user || error) return null
 
+        // compare password
         const isValid = await bcrypt.compare(
           credentials.password,
           user.password
@@ -52,8 +47,8 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
-        token.role = user.role
         token.id = user.id
+        token.role = user.role
       }
       return token
     },
