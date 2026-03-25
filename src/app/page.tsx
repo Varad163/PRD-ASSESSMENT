@@ -14,9 +14,7 @@ export default function Home() {
         <br />
         Give Back ❤️
       </h1>
-      <div className="bg-red-500 text-white p-10 text-3xl">
-  TAILWIND TEST
-</div>
+     
 
       {/* Subtext */}
       <p className="text-lg text-gray-600 max-w-xl mb-8">

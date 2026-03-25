@@ -20,7 +20,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable}`}>
+      <body
+        className={`
+          ${inter.variable} 
+          ${playfair.variable}
+          min-h-screen
+          bg-gradient-to-b from-blue-50 via-blue-100 to-blue-200
+        `}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
