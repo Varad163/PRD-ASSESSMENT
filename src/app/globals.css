@@ -2,24 +2,3 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 🌙 Premium Dark Theme */
-body {
-  background: #0a0a0a;
-  color: #ffffff;
-  font-family: Inter, sans-serif;
-}
-
-/* ✨ Smooth UI */
-* {
-  transition: all 0.2s ease-in-out;
-}
-
-/* 🎯 Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 10px;
-}
