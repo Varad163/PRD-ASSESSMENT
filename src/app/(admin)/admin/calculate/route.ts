@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
 function getPercentage(matches: number) {
@@ -9,8 +10,8 @@ function getPercentage(matches: number) {
 
 export async function POST() {
   try {
-    // 🔥 1. get latest draw
-    const { data: draw } = await supabase
+    // 🔥 1. Get latest draw
+    const { data: draw, error: drawError } = await supabase
       .from("draws")
       .select("*")
       .eq("status", "published")
@@ -18,30 +19,32 @@ export async function POST() {
       .limit(1)
       .single()
 
-    if (!draw) {
-      return Response.json({ error: "No draw found" }, { status: 404 })
+    if (drawError || !draw) {
+      return NextResponse.json({ error: "No draw found" }, { status: 404 })
     }
 
     const drawNumbers = draw.numbers
 
-    // 🔥 2. get scores
-    const { data: scoresData } = await supabase.from("scores").select("*")
-    const scores = scoresData || []
+    // 🔥 2. Get scores
+    const { data: scores } = await supabase
+      .from("scores")
+      .select("*")
 
-    // 🔥 3. get total pool
-   const { data: subsData } = await supabase.from("subscriptions").select("*")
-const subs = subsData || []
+    // 🔥 3. Get subscriptions → total pool
+    const { data: subs } = await supabase
+      .from("subscriptions")
+      .select("*")
 
-    const totalPool = subs.length * 100 // 💰
+    const totalPool = (subs?.length || 0) * 100
 
-    // 🔥 4. classify winners
-    const groups: Record<number, any[]> = {
+    // 🔥 4. Classify winners
+    const groups: any = {
       5: [],
       4: [],
       3: [],
     }
 
-    for (const s of scores) {
+    for (const s of scores || []) {
       const matches = s.values.filter((n: number) =>
         drawNumbers.includes(n)
       ).length
@@ -53,7 +56,7 @@ const subs = subsData || []
 
     const winners: any[] = []
 
-    // 🔥 5. distribute money
+    // 🔥 5. Distribute prize
     for (const match of [5, 4, 3]) {
       const group = groups[match]
       if (!group || group.length === 0) continue
@@ -65,6 +68,7 @@ const subs = subsData || []
       for (const user of group) {
         winners.push({
           user_id: user.user_id,
+          draw_id: draw.id, // ✅ IMPORTANT
           score_id: user.id,
           match_count: match,
           prize_amount: Math.floor(perUserPrize),
@@ -73,19 +77,25 @@ const subs = subsData || []
       }
     }
 
-    // 🔥 6. insert winners
+    // 🔥 6. DELETE old winners (avoid duplicates)
+    await supabase
+      .from("winners")
+      .delete()
+      .eq("draw_id", draw.id)
+
+    // 🔥 7. INSERT new winners
     if (winners.length > 0) {
       await supabase.from("winners").insert(winners)
     }
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       totalPool,
       winners: winners.length,
     })
 
   } catch (err) {
-    console.error(err)
-    return Response.json({ error: "failed" }, { status: 500 })
+    console.error("CALCULATION ERROR:", err)
+    return NextResponse.json({ error: "failed" }, { status: 500 })
   }
 }
