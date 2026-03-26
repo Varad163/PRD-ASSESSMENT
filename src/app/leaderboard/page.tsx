@@ -2,18 +2,27 @@
 
 import { useEffect, useState } from "react"
 
+type LeaderboardUser = {
+  email: string
+  wins: number
+  total: number
+}
+
 export default function LeaderboardPage() {
-  const [data, setData] = useState<any[]>([])
+  const [leaders, setLeaders] = useState<LeaderboardUser[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchLeaderboard = async () => {
-    const res = await fetch("/api/leaderboard")
-    const json = await res.json()
+    try {
+      const res = await fetch("/api/leaderboard")
+      const data = await res.json()
 
-    console.log("LEADERBOARD:", json)
-
-    setData(json.data || [])
-    setLoading(false)
+      setLeaders(data.data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -28,16 +37,15 @@ export default function LeaderboardPage() {
 
         {loading ? (
           <p>Loading...</p>
-        ) : data.length === 0 ? (
-          <p>No data yet</p>
+        ) : leaders.length === 0 ? (
+          <p>No data</p>
         ) : (
-          <div className="space-y-3">
-            {data.map((user, index) => (
+          <div className="space-y-4">
+            {leaders.map((user, index) => (
               <div
                 key={index}
-                className="flex justify-between items-center bg-white p-4 rounded-xl shadow"
+                className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
               >
-                {/* Rank + Email */}
                 <div>
                   <p className="font-semibold">
                     #{index + 1} {user.email}
@@ -47,8 +55,7 @@ export default function LeaderboardPage() {
                   </p>
                 </div>
 
-                {/* Prize */}
-                <p className="font-bold text-green-600">
+                <p className="text-green-600 font-bold">
                   ₹{user.total}
                 </p>
               </div>

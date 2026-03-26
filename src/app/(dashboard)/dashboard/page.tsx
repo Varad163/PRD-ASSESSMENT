@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
+import  UserWinnings  from "../../../components/UserWinnings"
 
 export default function DashboardPage() {
   const [subscribed, setSubscribed] = useState(false)
@@ -212,6 +213,7 @@ useEffect(() => {
                 View Results
               </button>
             </div>
+            <UserWinnings />
           </>
         )}
 

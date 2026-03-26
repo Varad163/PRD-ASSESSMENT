@@ -11,7 +11,7 @@ export default function WinnersPage() {
       const res = await fetch("/api/admin/winners")
       const data = await res.json()
 
-      console.log("WINNERS:", data) // 🔥 debug
+      console.log("WINNERS:", data)
 
       setWinners(data.data || [])
     } catch (err) {
@@ -24,6 +24,29 @@ export default function WinnersPage() {
   useEffect(() => {
     fetchWinners()
   }, [])
+
+  // ✅ Mark as paid
+  const markAsPaid = async (id: string) => {
+    try {
+      const res = await fetch("/api/admin/mark-paid", {
+        method: "POST",
+        body: JSON.stringify({ id }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.error || "Failed to update")
+        return
+      }
+
+      alert("Marked as paid")
+      fetchWinners()
+    } catch (err) {
+      console.error(err)
+      alert("Error updating status")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-8">
@@ -52,6 +75,8 @@ export default function WinnersPage() {
                   <th className="p-4">Matches</th>
                   <th className="p-4">Prize</th>
                   <th className="p-4">Status</th>
+                  <th className="p-4">Proof</th>
+                  <th className="p-4">Action</th>
                 </tr>
               </thead>
 
@@ -82,13 +107,48 @@ export default function WinnersPage() {
 
                     {/* Status */}
                     <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        w.status === "paid"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          w.status === "paid"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
                         {w.status}
                       </span>
+                    </td>
+
+                    {/* Proof */}
+                    <td className="p-4">
+                      {w.proof_url ? (
+                        <a
+                          href={w.proof_url}
+                          target="_blank"
+                          className="text-blue-500 underline"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">No Proof</span>
+                      )}
+                    </td>
+
+                    {/* Action */}
+                    <td className="p-4">
+                      {w.status === "pending" && w.proof_url && (
+                        <button
+                          onClick={() => markAsPaid(w.id)}
+                          className="bg-green-600 text-white px-3 py-1 rounded"
+                        >
+                          Mark Paid
+                        </button>
+                      )}
+
+                      {w.status === "paid" && (
+                        <span className="text-green-600 font-semibold">
+                          Paid
+                        </span>
+                      )}
                     </td>
 
                   </tr>
