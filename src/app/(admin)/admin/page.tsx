@@ -96,7 +96,23 @@ export default function AdminPage() {
       method: "POST",
     })
     const data = await res.json()
-    alert(`Winners: ${data.totalWinners}`)
+    const runDraw = async () => {
+  const res = await fetch("/api/admin/calculate", {
+    method: "POST",
+  })
+
+  const data = await res.json()
+
+  console.log("CALC:", data)
+
+  if (!res.ok) {
+    alert("Error: " + data.error)
+    return
+  }
+
+  alert(`Winners: ${data.winners}`)
+}
+
   }}
   className="bg-green-600 text-white px-4 py-2 rounded"
 >

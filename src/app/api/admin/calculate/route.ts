@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getPercentage(matches: number) {
+  if (matches === 5) return 0.5
+  if (matches === 4) return 0.3
+  if (matches === 3) return 0.2
+  return 0
+}
 
 export async function POST() {
   try {
-    // 🔥 1. GET LATEST DRAW
+    // 1. GET DRAW
     const { data: draw } = await supabase
       .from("draws")
       .select("*")
@@ -21,58 +23,82 @@ export async function POST() {
       return NextResponse.json({ error: "No draw found" }, { status: 404 })
     }
 
-    const drawNumbers: number[] = draw.numbers
+    const drawNumbers = draw.numbers
 
-    // 🔥 2. GET ALL USER SCORES
+    // 2. GET SCORES
     const { data: scores } = await supabase
       .from("scores")
       .select("*")
 
     if (!scores || scores.length === 0) {
-      return NextResponse.json({ error: "No scores found" }, { status: 404 })
+      return NextResponse.json({ error: "No scores found" }, { status: 400 })
     }
 
-    const winners: any[] = []
+    // 3. GET SUBSCRIPTIONS (POOL)
+    const { data: subs } = await supabase
+      .from("subscriptions")
+      .select("*")
 
-    // 🔥 3. MATCH LOGIC
+    const totalPool = (subs?.length || 0) * 100
+
+    // 4. GROUP
+    const groups: Record<number, any[]> = {
+      5: [],
+      4: [],
+      3: [],
+    }
+
     for (const score of scores) {
-      const userNumbers: number[] = score.values
-
-      const matches = userNumbers.filter(n =>
+      const matches = score.values.filter((n: number) =>
         drawNumbers.includes(n)
       ).length
 
-      // 🎯 ONLY consider if at least 2 matches
-      if (matches >= 2) {
+      if (matches >= 3) {
+        groups[matches].push(score)
+      }
+    }
+
+    // 5. CREATE WINNERS
+    const winners = []
+
+    for (const match of [5, 4, 3]) {
+      const group = groups[match]
+      if (!group.length) continue
+
+      const percentage = getPercentage(match)
+      const totalPrize = totalPool * percentage
+      const perUserPrize = totalPrize / group.length
+
+      for (const score of group) {
+        if (!score.user_id) continue
+
         winners.push({
           user_id: score.user_id,
           score_id: score.id,
-          match_count: matches,
+          draw_id: draw.id,
+          match_count: match,
+          prize_amount: Math.floor(perUserPrize),
           status: "pending",
         })
       }
     }
 
-    // 🔥 4. STORE RESULTS
-    if (winners.length > 0) {
-      const { error } = await supabase
-        .from("winners")
-        .insert(winners)
+    // 6. INSERT
+    const { error } = await supabase
+      .from("winners")
+      .insert(winners)
 
-      if (error) throw error
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      totalWinners: winners.length,
+      winners: winners.length,
     })
 
   } catch (err) {
-    console.error("CALC ERROR:", err)
-
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    )
+    console.error(err)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
