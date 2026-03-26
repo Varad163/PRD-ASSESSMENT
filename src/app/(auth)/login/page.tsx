@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -100,11 +101,14 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500">
-          Don’t have an account?{" "}
-          <span className="text-blue-600 font-semibold cursor-pointer hover:underline">
-            Sign up
-          </span>
-        </p>
+  Don’t have an account?{" "}
+  <Link
+    href="/register"
+    className="text-blue-600 font-semibold hover:underline"
+  >
+    Sign up
+  </Link>
+</p>
       </form>
     </div>
   )

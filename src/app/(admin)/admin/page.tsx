@@ -90,6 +90,18 @@ export default function AdminPage() {
             <h3 className="text-sm text-gray-500">Active Draws</h3>
             <p className="text-2xl font-bold">3</p>
           </div>
+          <button
+  onClick={async () => {
+    const res = await fetch("/api/admin/calculate", {
+      method: "POST",
+    })
+    const data = await res.json()
+    alert(`Winners: ${data.totalWinners}`)
+  }}
+  className="bg-green-600 text-white px-4 py-2 rounded"
+>
+  Run Draw Calculation
+</button>
 
         </div>
       </div>

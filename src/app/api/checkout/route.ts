@@ -1,12 +1,24 @@
-import { stripe } from "@/lib/stripe"
+import Stripe from "stripe"
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export async function POST(req: Request) {
-  const { plan, userId } = await req.json()
+  const session = await getServerSession(authOptions)
 
-  const price = plan === "monthly" ? 500 : 5000
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
-  const session = await stripe.checkout.sessions.create({
+  const body = await req.json()
+  const plan = body.plan
+
+  const price =
+    plan === "yearly" ? 500000 : 50000
+
+  const stripeSession = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
 
@@ -15,23 +27,23 @@ export async function POST(req: Request) {
         price_data: {
           currency: "inr",
           product_data: {
-            name: `Golf Subscription (${plan})`,
+            name: `Golf ${plan} Subscription`,
           },
-          unit_amount: price * 100,
+          unit_amount: price,
         },
         quantity: 1,
       },
     ],
 
-    // 🔥 IMPORTANT PART
+    // 🔥 IMPORTANT
     metadata: {
-      userId,
+      userId: session.user.id,
       plan,
     },
 
-    success_url: `${process.env.NEXTAUTH_URL}/dashboard`,
-    cancel_url: `${process.env.NEXTAUTH_URL}/`,
+    success_url: "http://localhost:3000/dashboard",
+    cancel_url: "http://localhost:3000/dashboard",
   })
 
-  return NextResponse.json({ url: session.url })
+  return NextResponse.json({ url: stripeSession.url })
 }

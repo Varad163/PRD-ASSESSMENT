@@ -2,69 +2,77 @@
 
 import { useState } from "react"
 
-export default function DrawPage() {
-  const [loading, setLoading] = useState(false)
+export default function AdminDrawPage() {
+  const [numbers, setNumbers] = useState<number[]>([])
   const [message, setMessage] = useState("")
 
-  const runDraw = async () => {
-    try {
-      setLoading(true)
-      setMessage("")
+  const toggleNumber = (num: number) => {
+    if (numbers.includes(num)) {
+      setNumbers(numbers.filter(n => n !== num))
+    } else {
+      if (numbers.length >= 5) return
+      setNumbers([...numbers, num])
+    }
+  }
 
-      const res = await fetch("/api/draw", {
-        method: "POST",
-      })
+  const createDraw = async () => {
+    if (numbers.length !== 5) {
+      setMessage("❌ Select exactly 5 numbers")
+      return
+    }
 
-      const data = await res.json()
+    const res = await fetch("/api/admin/draw", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ numbers }),
+    })
 
-      if (!res.ok) {
-        setMessage("❌ Failed to run draw")
-        return
-      }
-
-      console.log(data)
-      setMessage("✅ Draw completed successfully!")
-    } catch (err) {
-      setMessage("⚠️ Something went wrong")
-    } finally {
-      setLoading(false)
+    if (res.ok) {
+      setMessage("✅ Draw created!")
+      setNumbers([])
+    } else {
+      setMessage("❌ Failed to create draw")
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-xl bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-lg hover:shadow-blue-200/40 hover:shadow-2xl transition-all duration-300 flex flex-col gap-6">
-        
-        {/* Title */}
-        <h1 className="text-3xl font-extrabold text-gray-900 text-center">
-          🎯 Admin Panel
-        </h1>
+    <div className="p-8 max-w-2xl mx-auto">
 
-        <p className="text-center text-gray-500">
-          Run monthly lucky draw for all participants
-        </p>
+      <h1 className="text-2xl font-bold mb-6">
+        🎯 Create Draw
+      </h1>
 
-        {/* Status Message */}
-        {message && (
-          <p className="text-center text-sm font-medium">
-            {message}
-          </p>
-        )}
-
-        {/* Button */}
-        <button
-          onClick={runDraw}
-          disabled={loading}
-          className="bg-red-600 hover:bg-red-700 transition text-white p-4 rounded-xl font-semibold shadow-md"
-        >
-          {loading ? "Running Draw..." : "Run Monthly Draw"}
-        </button>
-
-        {/* Info Box */}
-        <div className="bg-gray-100 p-4 rounded-lg text-sm text-gray-600">
-          ⚠️ This action will randomly select winners and distribute rewards.
-        </div>
+      {/* GRID */}
+      <div className="grid grid-cols-9 gap-2 mb-6">
+        {Array.from({ length: 45 }, (_, i) => i + 1).map(num => (
+          <button
+            key={num}
+            onClick={() => toggleNumber(num)}
+            className={`p-2 rounded border ${
+              numbers.includes(num)
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100"
+            }`}
+          >
+            {num}
+          </button>
+        ))}
       </div>
+
+      <p className="mb-4">
+        Selected: {numbers.join(", ") || "None"}
+      </p>
+
+      <button
+        onClick={createDraw}
+        className="bg-purple-600 text-white px-4 py-2 rounded"
+      >
+        Create Draw
+      </button>
+
+      {message && <p className="mt-4">{message}</p>}
     </div>
   )
 }

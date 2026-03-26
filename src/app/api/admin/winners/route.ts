@@ -1,11 +1,25 @@
-import { supabase } from "@/lib/db"
 import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from("winners")
-    .select("*, users(email), draws(numbers)")
-    .order("created_at", { ascending: false })
+  const session = await getServerSession(authOptions)
 
-  return NextResponse.json({ data, error })
+  // 🔒 only admin allowed
+  if (session?.user.role !== "admin") {
+    return NextResponse.json([], { status: 403 })
+  }
+
+  const { data } = await supabase
+    .from("results")
+    .select("*")
+    .in("tier", ["jackpot", "tier2", "tier3"])
+
+  return NextResponse.json(data)
 }

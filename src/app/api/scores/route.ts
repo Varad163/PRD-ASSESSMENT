@@ -1,63 +1,40 @@
-import { supabase } from "@/lib/db"
+import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { NextResponse } from "next/server"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
+  try {
+    const session = await getServerSession(authOptions)
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-  const { value, played_at } = await req.json()
+    const { scores, dates } = await req.json()
 
-  if (value < 1 || value > 45) {
-    return NextResponse.json({ error: "Invalid score" }, { status: 400 })
-  }
+    if (!scores || scores.length !== 5) {
+      return NextResponse.json({ error: "Invalid scores" }, { status: 400 })
+    }
 
-  // 🔥 1. Get existing scores
-  const { data: scores } = await supabase
-    .from("scores")
-    .select("*")
-    .eq("user_id", session.user.id)
-    .order("played_at", { ascending: true }) // oldest first
-
-  // 🔥 2. If already 5 → delete oldest
-  if (scores && scores.length >= 5) {
-    const oldest = scores[0]
-
-    await supabase
-      .from("scores")
-      .delete()
-      .eq("id", oldest.id)
-  }
-
-  // 🔥 3. Insert new score
-  const { data, error } = await supabase
-    .from("scores")
-    .insert([
+    const { error } = await supabase.from("scores").insert([
       {
-        user_id: session.user.id,
-        value,
-        played_at,
+        user_id: session.user.id, // 🔥 using your auth
+        values: scores,
+        dates,
       },
     ])
 
-  return NextResponse.json({ data, error })
-}
-export async function GET() {
-  const session = await getServerSession(authOptions)
+    if (error) throw error
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
-
-  const { data } = await supabase
-    .from("scores")
-    .select("*")
-    .eq("user_id", session.user.id)
-    .order("played_at", { ascending: false }) // latest first
-
-  return NextResponse.json({ scores: data })
 }

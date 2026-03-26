@@ -1,70 +1,72 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 export default function ScoresPage() {
-  const [scores, setScores] = useState<any[]>([])
-  const [value, setValue] = useState("")
-  const [date, setDate] = useState("")
+  const [scores, setScores] = useState<number[]>([0,0,0,0,0])
+  const [dates, setDates] = useState<string[]>(["","","","",""])
+  const [msg, setMsg] = useState("")
 
-  const fetchScores = async () => {
-    const res = await fetch("/api/scores")
-    const data = await res.json()
-    setScores(data.scores || [])
+  const updateScore = (i:number, v:number) => {
+    const arr = [...scores]
+    arr[i] = v
+    setScores(arr)
   }
 
-  useEffect(() => {
-    fetchScores()
-  }, [])
+  const updateDate = (i:number, v:string) => {
+    const arr = [...dates]
+    arr[i] = v
+    setDates(arr)
+  }
 
-  const handleAdd = async () => {
-    await fetch("/api/scores", {
+  const submit = async () => {
+    if (scores.some(s => s < 1 || s > 45)) {
+      setMsg("Scores must be between 1–45")
+      return
+    }
+
+    const res = await fetch("/api/scores", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        value: Number(value),
-        played_at: date,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scores, dates })
     })
 
-    setValue("")
-    setDate("")
-    fetchScores()
+    setMsg(res.ok ? "✅ Scores saved!" : "❌ Failed")
   }
 
   return (
-    <div className="p-10">
-      <h1 className="text-2xl mb-4">Your Scores</h1>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-xl mx-auto bg-white p-6 rounded-xl shadow">
 
-      {/* Add Score */}
-      <div className="flex gap-4 mb-6">
-        <input
-          placeholder="Score (1-45)"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="p-2 text-black"
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="p-2 text-black"
-        />
-        <button onClick={handleAdd} className="bg-blue-500 p-2">
-          Add
-        </button>
-      </div>
+        <h1 className="text-2xl font-bold mb-4">
+          ⛳ Enter Your Last 5 Scores
+        </h1>
 
-      {/* Scores List */}
-      <ul className="space-y-2">
-        {scores.map((s) => (
-          <li key={s.id} className="border p-2">
-            Score: {s.value} | Date: {s.played_at}
-          </li>
+        {scores.map((_, i) => (
+          <div key={i} className="flex gap-3 mb-3">
+            <input
+              type="number"
+              placeholder="Score (1-45)"
+              className="border p-2 w-1/2"
+              onChange={e => updateScore(i, Number(e.target.value))}
+            />
+            <input
+              type="date"
+              className="border p-2 w-1/2"
+              onChange={e => updateDate(i, e.target.value)}
+            />
+          </div>
         ))}
-      </ul>
+
+        <button
+          onClick={submit}
+          className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
+        >
+          Submit Scores
+        </button>
+
+        <p className="mt-3">{msg}</p>
+      </div>
     </div>
   )
 }
