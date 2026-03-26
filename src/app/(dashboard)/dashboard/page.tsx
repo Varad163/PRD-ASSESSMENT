@@ -2,14 +2,26 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 export default function DashboardPage() {
   const [subscribed, setSubscribed] = useState(false)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
-  // ✅ check subscription (FIXED SAFE VERSION)
+  const router = useRouter()
+  const { data: session } = useSession() // ✅ get user email
+useEffect(() => {
+  if (!session) return
+
+  const role = session.user?.role
+
+  // 👑 ADMIN → redirect
+  if (role === "admin") {
+    router.replace("/admin")
+  }
+
+}, [session, router])
+  // ✅ check subscription
   useEffect(() => {
     const load = async () => {
       try {
@@ -22,9 +34,6 @@ export default function DashboardPage() {
         }
 
         const data = await res.json()
-
-        console.log("SUB STATUS:", data)
-
         setSubscribed(data.active)
       } catch (err) {
         console.error("Subscription error:", err)
@@ -37,7 +46,7 @@ export default function DashboardPage() {
     load()
   }, [])
 
-  // 💳 Stripe subscribe
+  // 💳 subscribe
   const subscribe = async (plan: "monthly" | "yearly") => {
     const res = await fetch("/api/checkout", {
       method: "POST",
@@ -55,10 +64,14 @@ export default function DashboardPage() {
 
       {/* 🔵 SIDEBAR */}
       <div className="w-64 bg-gray-900 text-white p-6 flex flex-col justify-between">
+        
         <div>
-          <h2 className="text-2xl font-bold mb-6">
-            ⛳ Golf App
-          </h2>
+          <h2 className="text-2xl font-bold mb-2">⛳ Golf App</h2>
+
+          {/* ✅ USER EMAIL */}
+          <p className="text-sm text-gray-400 mb-6">
+            {session?.user?.email}
+          </p>
 
           <ul className="space-y-3">
 
@@ -69,7 +82,6 @@ export default function DashboardPage() {
               🏠 Dashboard
             </li>
 
-            {/* 🔥 ONLY FOR SUBSCRIBED */}
             {subscribed && (
               <>
                 <li
@@ -79,12 +91,7 @@ export default function DashboardPage() {
                   ⛳ Scores
                 </li>
 
-                <li
-                  onClick={() => router.push("/history")}
-                  className="cursor-pointer hover:text-blue-400"
-                >
-                  📊 Score History
-                </li>
+                {/* ❌ REMOVED Score History */}
 
                 <li
                   onClick={() => router.push("/results")}
@@ -92,13 +99,15 @@ export default function DashboardPage() {
                 >
                   🏆 Results
                 </li>
-                <li onClick={() => router.push("/leaderboard")}>
-  🏆 Leaderboard
-</li>
 
-<li onClick={() => router.push("/admin/winners")}>
-  ⚙️ Admin Panel
-</li>
+                <li
+                  onClick={() => router.push("/leaderboard")}
+                  className="cursor-pointer hover:text-blue-400"
+                >
+                  🏆 Leaderboard
+                </li>
+
+                {/* ❌ REMOVED Admin Panel */}
               </>
             )}
           </ul>
@@ -116,11 +125,8 @@ export default function DashboardPage() {
       {/* 🟢 MAIN */}
       <div className="flex-1 p-10">
 
-        <h1 className="text-3xl font-bold mb-8">
-          🎉 Dashboard
-        </h1>
+        <h1 className="text-3xl font-bold mb-8">🎉 Dashboard</h1>
 
-        {/* ❌ FREE USER */}
         {!subscribed ? (
           <div className="bg-white p-8 rounded-2xl shadow-md text-center">
 
@@ -129,11 +135,10 @@ export default function DashboardPage() {
             </h2>
 
             <p className="text-gray-500 mb-6">
-              Subscribe to unlock scores & rewards
+              Subscribe to unlock features
             </p>
 
             <div className="flex justify-center gap-6">
-
               <button
                 onClick={() => subscribe("monthly")}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg"
@@ -147,12 +152,12 @@ export default function DashboardPage() {
               >
                 Yearly ₹5000
               </button>
-
             </div>
+
           </div>
         ) : (
           <>
-            {/* 👑 SUBSCRIBED HEADER */}
+            {/* 👑 HEADER */}
             <div className="bg-white p-8 rounded-2xl shadow-md mb-6 flex justify-between items-center">
 
               <div>
@@ -169,9 +174,9 @@ export default function DashboardPage() {
             </div>
 
             {/* 🔥 FEATURES */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-              {/* ✅ ENTER SCORES (FIXED) */}
+              {/* ✅ ENTER SCORES */}
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="font-semibold">Enter Scores</h3>
 
@@ -183,17 +188,7 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* ✅ HISTORY */}
-              <div className="bg-white p-6 rounded-xl shadow">
-                <h3 className="font-semibold">Score History</h3>
-
-                <button
-                  onClick={() => router.push("/history")}
-                  className="mt-3 bg-gray-800 text-white px-4 py-2 rounded"
-                >
-                  View
-                </button>
-              </div>
+              {/* ❌ REMOVED Score History card */}
 
               {/* ✅ STATUS */}
               <div className="bg-white p-6 rounded-xl shadow">
@@ -206,7 +201,7 @@ export default function DashboardPage() {
 
             </div>
 
-            {/* 🏆 RESULTS SECTION */}
+            {/* 🏆 RESULTS */}
             <div className="bg-white p-6 rounded-xl shadow mt-6">
               <h3 className="font-semibold mb-4">🏆 Your Results</h3>
 
