@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getPercentage(matches: number) {
+  if (matches === 5) return 0.5
+  if (matches === 4) return 0.3
+  if (matches === 3) return 0.2
+  return 0
+}
 
 export async function POST() {
   try {
-    // ✅ 1. Get latest draw
+    // 🔥 1. get latest draw
     const { data: draw } = await supabase
       .from("draws")
       .select("*")
@@ -18,45 +19,73 @@ export async function POST() {
       .single()
 
     if (!draw) {
-      return NextResponse.json({ error: "No draw found" }, { status: 400 })
+      return Response.json({ error: "No draw found" }, { status: 404 })
     }
 
     const drawNumbers = draw.numbers
 
-    // ✅ 2. Get all entries for this draw
-    const { data: entries } = await supabase
-      .from("draw_entries")
-      .select("*")
-      .eq("draw_id", draw.id)
+    // 🔥 2. get scores
+    const { data: scoresData } = await supabase.from("scores").select("*")
+    const scores = scoresData || []
 
-    if (!entries || entries.length === 0) {
-      return NextResponse.json({ error: "No entries found" }, { status: 400 })
+    // 🔥 3. get total pool
+   const { data: subsData } = await supabase.from("subscriptions").select("*")
+const subs = subsData || []
+
+    const totalPool = subs.length * 100 // 💰
+
+    // 🔥 4. classify winners
+    const groups: Record<number, any[]> = {
+      5: [],
+      4: [],
+      3: [],
     }
 
-    // ✅ 3. Compare + store scores
-    for (const entry of entries) {
-      const matches = entry.numbers.filter((num: number) =>
-        drawNumbers.includes(num)
-      )
+    for (const s of scores) {
+      const matches = s.values.filter((n: number) =>
+        drawNumbers.includes(n)
+      ).length
 
-      await supabase.from("scores").insert([
-        {
-          user_id: entry.user_id,
-          draw_id: draw.id,
-          matched_numbers: matches,
-          match_count: matches.length,
-        },
-      ])
+      if (matches >= 3) {
+        groups[matches].push(s)
+      }
     }
 
-    return NextResponse.json({ success: true })
+    const winners: any[] = []
+
+    // 🔥 5. distribute money
+    for (const match of [5, 4, 3]) {
+      const group = groups[match]
+      if (!group || group.length === 0) continue
+
+      const percentage = getPercentage(match)
+      const totalPrize = totalPool * percentage
+      const perUserPrize = totalPrize / group.length
+
+      for (const user of group) {
+        winners.push({
+          user_id: user.user_id,
+          score_id: user.id,
+          match_count: match,
+          prize_amount: Math.floor(perUserPrize),
+          status: "pending",
+        })
+      }
+    }
+
+    // 🔥 6. insert winners
+    if (winners.length > 0) {
+      await supabase.from("winners").insert(winners)
+    }
+
+    return Response.json({
+      success: true,
+      totalPool,
+      winners: winners.length,
+    })
 
   } catch (err) {
     console.error(err)
-
-    return NextResponse.json(
-      { error: "Failed to calculate scores" },
-      { status: 500 }
-    )
+    return Response.json({ error: "failed" }, { status: 500 })
   }
 }
